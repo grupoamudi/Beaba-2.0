@@ -1,363 +1,429 @@
-ï»¿#include <bits/stdc++.h>
-#include <fstream>
-#include <unistd.h>
-#include <fcntl.h>
-#include <io.h>
-using namespace std;
+#include "silaba.h"
+#include "fstream"
+#include <list>
+#include <chrono>
+
+#ifdef __arm__ // Raspberry Pi
+#include "wiringPi.h"
+#elif _WIN32 // Windows
+#include <Windows.h>
+#else // Outras plataformas
+
+
+#endif
+
 
 #define pb push_back
-#define mp make_pair
-const int ALFABETO = 'z'-'a'+1;
-const int MAXN = 4009;
-const int SAMP = 1e4+9;
+#define pf push_front
 
-int cnt=0;
-vector<string> V, ultimas,trava_lingua; // V armazena texto dividido em silabas para montagem do grafo
-vector<int> Escolha, verso, prov; //Escolha eh vetor usado como espaco amostral para sorteio de silabas
-vector<int> comeco_anag[ALFABETO];//guardamos silabas de inicio de palavra para cada letra do alfabeto
-map<string,int> M;
-set<string> S; //usado para buscar palavras geradas, impedindo que sejam iguais a palavras da Train Data
-map<int,string> Mrev;
-double prob[MAXN][MAXN], soma[MAXN], prob_rev[MAXN][MAXN], soma_rev[MAXN]; //matriz de adjacencias e soma de linhas para calculo de probabilidades
-//O primeiro vetor carrega o codigo ASCII das letras acentuadas e cecedilla; o segundo carrega o codigo ANSI (?) das letras acentuadas e cecedilla
-int ascii_special[] = { 192, 193, 194, 195, 199, 201, 202, 205, 211, 212, 213, 218 };
-int string_special[] = { 224, 225, 226, 227, 231, 233, 234, 237, 243, 244, 245, 250 };
-/*
-std::wstring utf8_to_utf16(const std::string& utf8){
-    std::vector<unsigned long> unicode;
-    size_t i = 0;
-    while (i < utf8.size())
-    {
-        unsigned long uni;
-        size_t todo;
-        bool error = false;
-        unsigned char ch = utf8[i++];
-        if (ch <= 0x7F)
-        {
-            uni = ch;
-            todo = 0;
-        }
-        else if (ch <= 0xBF)
-        {
-            throw std::logic_error("not a UTF-8 string");
-        }
-        else if (ch <= 0xDF)
-        {
-            uni = ch&0x1F;
-            todo = 1;
-        }
-        else if (ch <= 0xEF)
-        {
-            uni = ch&0x0F;
-            todo = 2;
-        }
-        else if (ch <= 0xF7)
-        {
-            uni = ch&0x07;
-            todo = 3;
-        }
-        else
-        {
-            throw std::logic_error("not a UTF-8 string");
-        }
-        for (size_t j = 0; j < todo; ++j)
-        {
-            if (i == utf8.size())
-                throw std::logic_error("not a UTF-8 string");
-            unsigned char ch = utf8[i++];
-            if (ch < 0x80 || ch > 0xBF)
-                throw std::logic_error("not a UTF-8 string");
-            uni <<= 6;
-            uni += ch & 0x3F;
-        }
-        if (uni >= 0xD800 && uni <= 0xDFFF)
-            throw std::logic_error("not a UTF-8 string");
-        if (uni > 0x10FFFF)
-            throw std::logic_error("not a UTF-8 string");
-        unicode.push_back(uni);
-    }
-    std::wstring utf16;
-    for (size_t i = 0; i < unicode.size(); ++i)
-    {
-        unsigned long uni = unicode[i];
-        if (uni <= 0xFFFF)
-        {
-            utf16 += (wchar_t)uni;
-        }
-        else
-        {
-            uni -= 0x10000;
-            utf16 += (wchar_t)((uni >> 10) + 0xD800);
-            utf16 += (wchar_t)((uni & 0x3FF) + 0xDC00);
-        }
-    }
-    return utf16;
-}
-*/
-/*
-void acronimo(int barra) {
-	string palavra;
-	cout << "Ok, Digite a palavra: "; cout.flush();
-	cin >> palavra;
-	cout << "\n"; cout.flush();
-	vector<string> para_salvar;
-	for (int i = 0; i < (int)palavra.size(); i++) {
-		palavra[i] = tolower(palavra[i]);
-		int silaba_inicial = comeco_anag[palavra[i] - 'a'][rand() % (int)comeco_anag[palavra[i] - 'a'].size()];
-		string silaba = Mrev[silaba_inicial];
-		int atual = silaba_inicial;
-		int minimo_silabas = 0;
-		string anagrama; anagrama.clear();
-		do {
-			if (atual != barra)anagrama += silaba;
-			minimo_silabas++;
-			Escolha.clear();
-			for (int j = 0; j < cnt; j++)
-				for (int k = 1; k <= prob[atual][j]; k++)
-					Escolha.pb(j); //preenchemos nosso espaco amostral com base nas probabilidades
-			if (Escolha.size() == 0)break;
-			atual = Escolha[rand() % (int)Escolha.size()];
-			silaba = Mrev[atual];
-		} while (atual != barra);
-		if (anagrama.size() < 3 || anagrama.size() > 8 || S.find(anagrama) != S.end()) {
-			i--;
-		}
-		else {
-			anagrama[0] = toupper(anagrama[0]);
-			cout << anagrama << endl; cout.flush();
-			para_salvar.pb(anagrama);
-		}
-	}
-	printf("\n");
-	ofstream file_;
-	file_.open("TextoGerado.txt");
-	for (int i = 0; i < (int)para_salvar.size(); i++)
-		file_ << para_salvar[i] << "\n";
-	file_.close();
-	//system("lp TextoGerado.txt");
-}
-*/
-void poema(int barra) {
-	int versos[4] = { 4,4,3,3 };
+int ascii_especial[] = { 192, 193, 194, 195, 199, 201, 202, 205, 211, 212, 213, 218 };
+int string_especial[] = { 224, 225, 226, 227, 231, 233, 234, 237, 243, 244, 245, 250 };
 
-	int rima[4][4]; set<int>rimas;
-	rima[0][0] = M[ultimas[rand() % (int)ultimas.size()]];
-	rimas.insert(rima[0][0]);
-	rima[0][3] = rima[0][0]; rima[1][0] = rima[0][0]; rima[1][3] = rima[0][0];
+vector<Silaba*> Silabas;
+vector<Silaba*> Ultimas;
+Silaba* espaco = new Silaba(" ");
 
-	do { rima[0][1] = M[ultimas[rand() % (int)ultimas.size()]]; } while (rimas.find(rima[0][1]) != rimas.end());
-	rimas.insert(rima[0][1]);
-	rima[0][2] = rima[0][1]; rima[1][1] = rima[0][1]; rima[1][2] = rima[0][1];
+int maximoSilabas = 10;
 
-	do { rima[2][0] = M[ultimas[rand() % (int)ultimas.size()]]; } while (rimas.find(rima[2][0]) != rimas.end());
-	rimas.insert(rima[2][0]);
-	rima[2][2] = rima[2][0]; rima[3][1] = rima[2][0];
-
-	do { rima[2][1] = M[ultimas[rand() % (int)ultimas.size()]]; } while (rimas.find(rima[2][1]) != rimas.end());
-	rima[3][0] = rima[2][1]; rima[3][2] = rima[2][1];
-
-	// o esquema de rimas do soneto eh abba abba cdc dcd
-	vector<string> para_salvar;
-	cout << "\n"; cout.flush();
-
-	for (int i = 0; i < 4; i++) {
-		for (int j = 0; j < versos[i]; j++) {
-			verso.clear();
-			bool flag = true;
-			int atual;
-			while ((int)verso.size() < 10) {
-				if (flag)atual = rima[i][j];
-				else atual = barra;
-				prov.clear();
-				do {
-					if (atual != barra)prov.pb(atual);
-					Escolha.clear();
-					for (int l = 0; l < cnt; l++)
-						for (int k = 1; k <= prob_rev[atual][l]; k++)
-							Escolha.pb(l); //preenchemos nosso espaco amostral com base nas probabilidades
-					if (Escolha.size() == 0)atual = barra;
-					else atual = Escolha[rand() % (int)Escolha.size()];
-				} while (atual != barra);
-
-				if (prov.size() >= 1 && prov.size() <= 5 && (int)prov.size() + (int)verso.size() < 12) {
-					for (int k = 0; k < (int)prov.size(); k++) {
-						verso.pb(prov[k]);
-					}
-					verso.pb(barra); flag = false;
-				}
-			}
-			string aux; aux.clear();
-			for (int k = (int)verso.size() - 2; k >= 0; k--) {
-				if (verso[k] == barra) { aux += " "; cout << " "; cout.flush(); continue; }
-				aux += Mrev[verso[k]];
-				cout << Mrev[verso[k]];
-				cout.flush();
-			}
-			//conversao letra corrompida -> letra acentuada no txt
-			for (int k = 0; k < aux.length(); k++) {
-				for (int w = 0; w < 12; w++) {
-					if ((int)(unsigned char)aux[k] == string_special[w]) {
-						aux[k] = (unsigned char)ascii_special[w];
-					}
-				}
-			}
-			para_salvar.pb(aux);
-			cout << endl; cout.flush();
-		}
-		cout << endl; cout.flush();
-	}
-	ofstream file_;
-	file_.open("TextoGerado.txt");
-	
-	for (int i = 0; i < (int)para_salvar.size(); i++) {
-		if (i == 4 || i == 8 || i == 11)file_ << " \n";
-		file_ << (para_salvar[i]) << "\n";
-	
-	}
-
-	file_.close();
-	//system("lp TextoGerado.txt");
-
-}
-/*
-void travalingua(int barra) {
-	set<int> proibido;
-	proibido.insert('w' - 'a'); proibido.insert('y' - 'a');
-	proibido.insert('x' - 'a'); proibido.insert('k' - 'a');
-	proibido.insert('w' - 'a'); proibido.insert('q' - 'a');
-	proibido.insert('z' - 'a'); proibido.insert('j' - 'a');
-	proibido.insert('u' - 'a'); proibido.insert('o' - 'a');
-	proibido.insert('e' - 'a'); proibido.insert('h' - 'a');
-	proibido.insert('i' - 'a'); proibido.insert('a' - 'a');
-	int letra_rep;
-	do { letra_rep = rand() % ALFABETO; } while (proibido.find(letra_rep) != proibido.end());
-	int inicio_rep[20];
-	for (int i = 0; i < 20; i++) {
-		inicio_rep[i] = comeco_anag[letra_rep][rand() % (int)comeco_anag[letra_rep].size()];
-	}
-	trava_lingua.clear();
-	set<string> ja_foi;
-	while ((int)trava_lingua.size() < 5) {
-		int atual = inicio_rep[rand() % 20];
-		string palavra; palavra.clear();
-		while (true) {
-			if (atual == barra)break;
-			palavra += Mrev[atual];
-			Escolha.clear();
-			for (int i = 0; i < cnt; i++)
-				for (int k = 1; k <= prob[atual][i]; k++)
-					Escolha.pb(i);
-			if (Escolha.size() == 0)atual = barra;
-			else atual = Escolha[rand() % (int)Escolha.size()];
-		}
-		if (palavra.size() < 6 && palavra.size() > 2 && ja_foi.find(palavra) == ja_foi.end()) {
-			ja_foi.insert(palavra);
-			palavra[0] = toupper(palavra[0]);
-			trava_lingua.pb(palavra);
-		}
-	}
-	for (int i = 0; i < (int)trava_lingua.size(); i++) {
-		cout << trava_lingua[i] << " "; cout.flush();
-	}
-	cout << endl; cout.flush();
-	ofstream file_;
-	file_.open("TextoGerado.txt");
-	for (int i = 0; i < (int)trava_lingua.size(); i++) {
-		file_ << trava_lingua[i] << " ";
-	}
-	file_.close();
-	system("lp TextoGerado.txt");
-	cout << endl; cout.flush();
-}
-*/
-void informacoes() {
-	ofstream file_;
-	file_.open("Informacoes.txt");
-	//IMPRIME INFORMACOES.TXT
-	cout << "Imprimindo Informacoes.txt ..." << endl;
-	//system("lp TextoGerado.txt");
-	file_.close();
-}
+const int N_BOTOES = 2;
+struct botao {
+	int n;
+	int estado;
+	int atraso;
+};
+const int PERIODO_MS = 10; // Intervalo em que botoes sao lidos
+const int ATRASO_BOUNCE = 40 / PERIODO_MS;
+const int ATRASO_2BOTOES = 55 / PERIODO_MS;
+const int ATRASO_IMPR_MS = 300;
+enum estado_botao { APERTADO, SOLTO, ATIVAR, DESAPERTADO };
 
 
+/*		INFORMACOES SOBRE OS DICIONARIOS (nltk.corpus usados em geraDicionario.py)
+ *	machado: 77000 palavras. 5851 silabas distintas. 3285 terminacoes distintas. Inicializacao estimada em 21000ms. Contem palavras estrangeiras em poucas quantidades.
+ *  mac_morpho: 61505 palavras. 8438 silabas distintas. 4849 terminacoes distintas. Inicializacao estimada em 23000ms. Contem palavras estrangeiras em quantidade consideravel.
+ *  floresta: 27600 palavras. 5108 silabas distintas. 2272 terminacoes distintas. Inicializacao estimada em 8000ms. Contem palavras estrangeiras em quantidade moderada.
+ *  
+ *  Contribuicao com novos corpus e com dados sobre tempo de inicializacao sao bem-vindos.
+ */
+
+ //Carrega o banco de palavras, gerando o grafo.
+void setup(string nomeDoArquivo);
+//Gera uma palavra a partir de uma silaba final e com seu maximo tamanho
+list<Silaba*> geraPalavra(Silaba* terminacao, int maxTamanho, int linhasAPular);
+//Gera o poema, chamando pelas palavras
+void geraPoema();
+//Nossos MisterEggs. TODO
+void sr_ovo1();
+void sr_ovo2();
+void sr_ovo3();
+//Imprime os dados da obra.
+void informacoes();
+
+void atualiza_botao(botao* b);
+int leitura_botao(int n_botao);
+bool dois_botoes(botao b1, botao b2);
+void debug_print(string s);
+
+bool temDicionario = false;
 
 int main(){
-	//wiringPiSetup();
-	//PinMode(0, INPUT);
-	//PinMode(1, INPUT);
-    setlocale(LC_ALL, "Portuguese");
-	ios_base::sync_with_stdio(false);
-    cin.tie(NULL);
-	ifstream Arquivo; 
-    string ler;
-    Arquivo.open("nuBank.txt");
-    V.pb("/"); //barras indicam inicio e fim de palavras
-	while (Arquivo >> ler) {
-		string silaba, palavra;
-		for (int i = 0; i < (int)ler.size(); i++) {
-			ler[i] = tolower(ler[i]); //Trabalhamos apenas com letras minusculas
-			if (ler[i] == '-') {
-				V.pb(silaba);
-				silaba.clear();
-			}
-			else {
-				if (ler[i] != '.') {
-						silaba += ler[i];
-						palavra += ler[i];
-				}
-			}
-		}
-		V.pb(silaba);
-		ultimas.pb(silaba);//silaba final de palavra, usaremos para rimar
-		V.pb("/");
-		S.insert(palavra);
-		ler.clear();
-	}
-	int barra;
-	long int check;
-	for(long int i=0; i<(int)V.size(); i++){
-		if(M.find(V[i])==M.end()){
-			if(V[i]=="/")barra = cnt;
-			M.insert(mp(V[i],cnt)); // sorteamos inteiros, depois usamos seu equivalente em string para imprimir texto
-			Mrev.insert(mp(cnt,V[i]));
-			cnt++;
-		}
-	}
-	cout << "cnt" << cnt << endl;
-	for(int i=1; i<(int)V.size(); i++){
-		string s1 = V[i-1];
-		string s2 = V[i];
-		int v1 = M[s1]; 
-		int v2 = M[s2];
-		prob[v1][v2]++; soma[v1]++;
-		prob_rev[v2][v1]++; soma_rev[v2]++;
-		if(v1==barra && s2[0]-'a'>=0){//estamos no comeco de uma palavra, fazemos pre-processamento para geracao de anagramas
-			comeco_anag[s2[0]-'a'].pb(v2);
-		}
-	}
-	for(int i=1; i<cnt; i++){
-		for(int j=1; j<cnt; j++){
-			prob[i][j] = (prob[i][j]/soma[i])*SAMP; //calculamos probabilidades para sorteio
-			prob_rev[i][j] = (prob_rev[i][j]/soma_rev[i])*SAMP;
-		}
-	}	
+	setup("banco.txt");
 	srand(time(NULL));
-    cout<<"Bem vindo ao Projeto BEABA 2.0\n"; cout.flush();
-	while(true){
-    	cout<<"1 -> Gerar acronimo\n"; cout.flush();
-    	cout<<"0 -> Informacoes\n"; cout.flush();
-		cout << "4 -> Sair \n"; cout.flush();
-		int x;
-		cin >> x;
-		if (/*digitalRead(0) == 1 && digitalRead(1) == 0*/ x == 1) system("lp informacoes.txt");
-		else if (/*digitalRead(1) == 1 && digitalRead(0) == 0*/ x == 0) poema(barra);
-		else if (/*digitalRead(1) == 1 && digitalRead(1) == 1*/ x == 2) {
-			/*system("lp aperture.txt");*/
-			cout << (unsigned char)192 << endl;
+	debug_print("Pronto");
+
+	struct botao botoes[N_BOTOES];
+	for (int i = 0; i < N_BOTOES; i++) {
+		botoes[i].n = i;
+		botoes[i].estado = DESAPERTADO;
+		botoes[i].atraso = 0;
+	}
+
+	int numInformacoes = 0;
+	while (true) {
+		//std::this_thread::sleep_for(std::chrono::milliseconds(PERIODO_MS));
+		// Estados do botao:
+		// DESAPERTADO -> APERTADO -> SOLTO -> ATIVAR -> DESAPERTADO
+		// Funcao do botao ativada em ATIVAR
+		for (int i = 0; i < N_BOTOES; i++) {
+			atualiza_botao(&botoes[i]);
 		}
-		else if (x == 4) break;
-    	
-		cout<<"Obrigado por utilizar o Beaba!\n"; cout.flush();
+
+		// Dois botoes soltos ao mesmo tempo
+		if (dois_botoes(botoes[0], botoes[1])) {
+			cout << "segredo1" << endl;
+			//sr_ovo1();
+			botoes[0].estado = DESAPERTADO;
+			botoes[1].estado = DESAPERTADO;
+			//std::this_thread::sleep_for(std::chrono::milliseconds(ATRASO_IMPR_MS));
+		}
+		else if (botoes[0].estado == ATIVAR) {
+			cout << "poema" << endl;
+			if (numInformacoes) numInformacoes = 0;
+			geraPoema();
+			//std::this_thread::sleep_for(std::chrono::milliseconds(ATRASO_IMPR_MS));
+			botoes[1].estado = DESAPERTADO;
+		}
+		else if (botoes[1].estado == ATIVAR) {
+			cout << "informacoes" << endl;
+			numInformacoes++;
+			if (numInformacoes == 6) sr_ovo2();
+			else if (numInformacoes == 13) sr_ovo3();
+			else informacoes();
+			// std::this_thread::sleep_for(std::chrono::milliseconds(ATRASO_IMPR_MS));
+			botoes[0].estado = DESAPERTADO;
+		}
 	}
     return 0;
+}
+
+
+void setup(string nomeDoArquivo) {
+#ifdef DEBUG
+	auto begin = chrono::high_resolution_clock::now();
+#endif
+	//Verifica se eh uma inicializacao ou atualizacao de dicionario.
+	if (temDicionario) {
+		Silabas.clear();
+		Ultimas.clear();
+	}
+
+	ifstream Arquivo;
+	string ler;
+	Arquivo.open(nomeDoArquivo);
+	while (Arquivo) {
+		Arquivo >> ler;
+		string silaba;
+		Silaba* silabaO;
+		Silaba* anteriorO;
+		bool comecoDePalavra = true;
+		bool jaExiste = false;
+		for (int i = 0; i < (int)ler.size(); i++) {
+			ler[i] = tolower(ler[i]); //Trabalhamos apenas com letras minusculas
+
+			//Formando a silaba
+			if (ler[i] != '-' && ler[i] != '.') {
+				silaba += ler[i];
+			}
+			//Silaba Formada
+			else {
+				jaExiste = false;
+				//Verificando se a silaba ja existe
+				unsigned int j;
+				for (j = 0; j < Silabas.size() && !(jaExiste); j++) {
+					if (silaba == Silabas.at(j)->getEscrita()) jaExiste = true; //Comparacao por nomes
+				}
+
+				if (jaExiste) {
+					silabaO = Silabas.at(j - 1);
+					/*Voltamos para o indice da silaba repetida. Nao podemos fazer j-- diretamente no laco ja que estamos lidando com uma variavel "unsigned".
+					  Em caso de j == 0, causariamos underflow de j, o que daria problemas.
+					*/
+				}
+				else {
+					silabaO = new Silaba(silaba);
+					Silabas.push_back(silabaO);
+
+				}
+				silaba.clear();
+				if (!comecoDePalavra) {
+					silabaO->addPredecessora(anteriorO); //A funcao "addPredecessora()" ja lida com casos de silabas que ja sao predecessoras, adicionando 1 na sua frequencia como predecessora.
+				}
+				anteriorO = silabaO;
+
+				comecoDePalavra = false; //Passamos de pelo menos uma silaba, logo temos uma silaba anterior.
+			}
+
+		}
+		if (!jaExiste) Ultimas.pb(silabaO);//silaba final de palavra, usaremos para rimar
+		anteriorO = NULL;
+		comecoDePalavra = true;
+		//Finalizamos uma palavra, logo nao temos silabas antecessoras.
+		ler.clear();
+	}
+	Arquivo.close();
+	temDicionario = true;
+#ifdef DEBUG
+	auto end = chrono::high_resolution_clock::now();
+	auto ms = std::chrono::duration_cast<std::chrono::milliseconds>(end-begin).count();
+	cout << "Quantidade de Silabas: "<< (unsigned int) Silabas.size() << "\n" << "Quantidade de Terminacoes: " << (unsigned int) Ultimas.size() << "\n" << "Tempo de Inicializacao: " << (int) ms << "ms\n";
+#endif
+}
+
+list<Silaba*> geraPalavra(Silaba* terminacao, int maxTamanho) {
+	//A opcao por uma list em vez de um vector se deve ao metodo "push_front" que o vector nao tem.
+	list<Silaba*> palavra;
+
+	//Geramos as palavras da ultima silaba para a primeira
+	Silaba* adicionada = terminacao;
+	for (int numSilabas = 0; numSilabas < maxTamanho; numSilabas++) {
+		palavra.pf(adicionada);
+
+		adicionada = palavra.front()->sorteiaPredecessora();
+		//A quantidade de silabas deve ser mantida, mesmo se a silaba encontrada nao tem predecessoras.
+		if (adicionada == NULL) {
+			adicionada = Silabas.at(rand() % Silabas.size());
+		}
+	}
+	return palavra;
+}
+
+void geraPoema()
+{
+	Silaba* rimas[] = { espaco, espaco, espaco, espaco };
+
+	// Geramos as terminacoes das rimas e tomamos cuidado para que nao sejam repetidas (ja nao ha repeticoes no nosso espaco de silabas)
+	rimas[0] = Ultimas.at(rand() % Ultimas.size());
+	do {
+		rimas[1] = Ultimas.at(rand() % Ultimas.size());
+	} while ((rimas[1]->getEscrita() == rimas[0]->getEscrita()));
+	do {
+		rimas[2] = Ultimas.at(rand() % Ultimas.size());
+	} while (rimas[2]->getEscrita() == rimas[0]->getEscrita() || rimas[2]->getEscrita() == rimas[1]->getEscrita());
+	do{	rimas[3] = Ultimas.at(rand() % Ultimas.size());
+	} while (rimas[3]->getEscrita() == rimas[0]->getEscrita() || rimas[2]->getEscrita() == rimas[1]->getEscrita() || rimas[3]->getEscrita() == rimas[2]->getEscrita());
+
+
+	//Geracao dos Versos
+	list<list<list<Silaba*>>> poema;
+	for (int numVerso = 1; numVerso <= 14; numVerso++) {
+		int numSilabas = 0;
+		int qtdSilabas = 0;
+		list<list<Silaba*>> verso;
+		list<Silaba*> palavra;
+		bool temMonossilaba = false;
+		while (numSilabas < maximoSilabas) {
+			//Geracao da quantidade de silabas. Evita palavras muito grandes.
+			do { qtdSilabas = rand() % (maximoSilabas - numSilabas); 
+			} while (qtdSilabas > 5);
+
+			qtdSilabas %= maximoSilabas - numSilabas;
+
+			//Evita muitas monossilabas, reduzindo repeticao de palavras finais.
+			if (((temMonossilaba)) && ((qtdSilabas == 0))) { 
+				qtdSilabas++; 
+			}
+
+			qtdSilabas++;
+
+			if (qtdSilabas == 1 && numSilabas < 8) { 
+				temMonossilaba = true; 
+			}
+
+			if ((qtdSilabas + numSilabas) >= maximoSilabas) {
+				qtdSilabas = maximoSilabas - numSilabas;
+				//Esta no fim do verso, deve rimar.
+				switch (numVerso) {
+				case 1:palavra = (geraPalavra(rimas[0], qtdSilabas)); break; //A
+				case 2:palavra = (geraPalavra(rimas[1], qtdSilabas)); break; //B
+				case 3:palavra = (geraPalavra(rimas[1], qtdSilabas)); break; //B
+				case 4:palavra = (geraPalavra(rimas[0], qtdSilabas)); break; //A
+				case 5:palavra = (geraPalavra(rimas[0], qtdSilabas)); break; //A
+				case 6:palavra = (geraPalavra(rimas[1], qtdSilabas)); break; //B
+				case 7:palavra = (geraPalavra(rimas[1], qtdSilabas)); break; //B
+				case 8:palavra = (geraPalavra(rimas[0], qtdSilabas)); break; //A
+				case 9:palavra = (geraPalavra(rimas[2], qtdSilabas)); break; //C
+				case 10:palavra = (geraPalavra(rimas[3], qtdSilabas)); break; //D 
+				case 11:palavra = (geraPalavra(rimas[2], qtdSilabas)); break; //C
+				case 12:palavra = (geraPalavra(rimas[3], qtdSilabas)); break; //D
+				case 13:palavra = (geraPalavra(rimas[2], qtdSilabas)); break; //C
+				case 14:palavra = (geraPalavra(rimas[3], qtdSilabas)); break; //D
+				}
+
+			}
+			else {
+				palavra = (geraPalavra(Ultimas.at(rand() % Ultimas.size()), qtdSilabas));
+			}
+			verso.pb(palavra);
+			numSilabas += palavra.size();
+		}
+		poema.pb(verso);
+		verso.clear();
+	}
+
+	ofstream saida;
+	saida.open("Poema.txt");
+
+	list<list<list<Silaba*>>>::iterator iteradorExterno = poema.begin();
+	int numVerso = 1;
+	//Iterando pelos versos do poema
+	while (iteradorExterno != poema.end()) {
+		list<list<Silaba*>> versoAtual = (*iteradorExterno);
+		list<list<Silaba*>>::iterator iteradorInterno = versoAtual.begin();
+		//Iterando pelas palavras de cada verso
+		while (iteradorInterno != versoAtual.end()) {
+			list<Silaba*> palavraAtual = (*iteradorInterno);
+			list<Silaba*>::iterator iteradorPalavra = palavraAtual.begin();
+			//Iterando pelas silabas de cada palavra
+			while (iteradorPalavra != palavraAtual.end()) {
+				string aux = (*iteradorPalavra)->getEscrita();
+				//Iterando por cada letra de cada silaba, substituindo caracteres especiais para escrever corretamente.
+				for (int i = 0; i < aux.length(); i++) {
+					for (int w = 0; w < 12; w++) {
+						if ((int)(unsigned char)aux[i] == string_especial[w]) {
+							aux[i] = tolower((unsigned char)ascii_especial[w]);
+						}
+					}
+					//Inicio do verso com letra maiuscula.
+					if (iteradorPalavra == palavraAtual.begin() && i == 0 && iteradorInterno == versoAtual.begin()) saida << (unsigned char)toupper(aux[i]);
+					else saida << aux[i];
+				}
+
+				iteradorPalavra++;
+			}
+			saida<< " ";
+			iteradorInterno++;
+			
+		}
+		saida << "\n";
+		if (numVerso == 4 || numVerso == 8 || numVerso == 11 || numVerso == 14) saida << "\n";
+		iteradorExterno++;
+		numVerso++;
+	}
+	saida.close();
+	system("imprime-poema.sh");
+}
+
+void sr_ovo1()
+{
+	// Imprime segredo 1
+	system("imprime-segredo1.sh");
+}
+
+void sr_ovo2()
+{
+	// Imprime segredo 2
+	system("imprime-segredo2.sh");
+}
+
+void sr_ovo3()
+{
+	// Imprime segredo 3
+	system("imprime-segredo3.sh");
+}
+
+void informacoes()
+{
+	//Cabe espaço pra rodar o programa de latexificação das informações ou a gente faz direto em latex
+	system("imprime-informacoes.sh");
+}
+
+void atualiza_botao(botao* b)
+{
+	switch (b->estado) {
+	case APERTADO:
+		b->atraso++;
+		if (b->atraso > ATRASO_BOUNCE && leitura_botao(b->n) == 0) {
+			b->estado = SOLTO;
+			b->atraso = 0;
+		}
+		break;
+	case SOLTO:
+		b->atraso++;
+		if (b->atraso > ATRASO_2BOTOES) {
+			b->estado = ATIVAR;
+			b->atraso = 0;
+		}
+		break;
+	case ATIVAR:
+		b->estado = DESAPERTADO;
+		b->atraso = 0;
+		break;
+	case DESAPERTADO:
+		b->atraso++;
+		if (b->atraso > ATRASO_BOUNCE && leitura_botao(b->n) == 1) {
+			b->estado = APERTADO;
+			b->atraso = 0;
+		}
+		break;
+	default:
+		break;
+	}
+}
+
+int leitura_botao(int n_botao)
+{
+#ifdef _WIN32
+	//cout << "Leitura..." << endl;
+	switch (n_botao) {
+	case 0:
+		if (GetKeyState('H') & 0x8000/*Check if high-order bit is set (1 << 15)*/) {
+			return 1;
+		}
+		return 0;
+		break;
+	case 1:
+		if (GetKeyState('J') & 0x8000/*Check if high-order bit is set (1 << 15)*/) {
+			return 1;
+		}
+		return 0;
+		break;
+	}
+#elif defined(__arm__)
+	int pino;
+	switch (n_botao) {
+	case 0:
+		pino = 0;
+		break;
+	case 1:
+		pino = 1;
+		break;
+	}
+	return digitalRead(pino);
+#endif // __arm__
+	return 0;
+}
+
+bool dois_botoes(botao b1, botao b2)
+{
+	return ((b1.estado == ATIVAR && b2.estado == SOLTO) ||
+		(b2.estado == ATIVAR && b1.estado == SOLTO) ||
+		(b1.estado == ATIVAR && b2.estado == ATIVAR));
+}
+
+void debug_print(string s)
+{
+#ifdef DEBUG
+	cout << s << endl;
+#endif // DEBUG
+	return;
 }
