@@ -2,11 +2,13 @@
 #include "fstream"
 #include <list>
 #include <chrono>
+#include <iomanip>
+#include <thread>
 
 #ifdef __arm__ // Raspberry Pi
-#include "wiringPi.h"
+	#include <wiringPi.h>
 #elif _WIN32 // Windows
-#include <Windows.h>
+	#include <Windows.h>
 #else // Outras plataformas
 
 
@@ -15,6 +17,10 @@
 
 #define pb push_back
 #define pf push_front
+// Adicionados Typedefs por legibilidade.
+typedef std::list<Silaba*> Palavra;
+typedef std::list<std::list<Silaba*>> Verso;
+typedef std::list<std::list<std::list<Silaba*>>> Poema;
 
 int ascii_especial[] = { 192, 193, 194, 195, 199, 201, 202, 205, 211, 212, 213, 218 };
 int string_especial[] = { 224, 225, 226, 227, 231, 233, 234, 237, 243, 244, 245, 250 };
@@ -32,9 +38,9 @@ struct botao {
 	int atraso;
 };
 const int PERIODO_MS = 10; // Intervalo em que botoes sao lidos
-const int ATRASO_BOUNCE = 40 / PERIODO_MS;
-const int ATRASO_2BOTOES = 55 / PERIODO_MS;
-const int ATRASO_IMPR_MS = 300;
+const int ATRASO_BOUNCE = 80 /	 PERIODO_MS;
+const int ATRASO_2BOTOES = 110 / PERIODO_MS;
+const int ATRASO_IMPR_MS = 2800;
 enum estado_botao { APERTADO, SOLTO, ATIVAR, DESAPERTADO };
 
 
@@ -66,10 +72,25 @@ void debug_print(string s);
 
 bool temDicionario = false;
 
+
+
 int main(){
+    #ifdef __arm__
+	wiringPiSetup();
+	#endif
+	#ifdef __arm__
+	setup("/home/beaba/beaba2020/Envio/banco.txt");
+	#else
 	setup("banco.txt");
+	#endif
+	
 	srand(time(NULL));
 	debug_print("Pronto");
+	
+	for (int i = 0; i < 12; i++){
+		cout << ascii_especial[i] <<endl;
+	}
+
 
 	struct botao botoes[N_BOTOES];
 	for (int i = 0; i < N_BOTOES; i++) {
@@ -80,7 +101,9 @@ int main(){
 
 	int numInformacoes = 0;
 	while (true) {
-		//std::this_thread::sleep_for(std::chrono::milliseconds(PERIODO_MS));
+		#ifdef __arm__
+		std::this_thread::sleep_for(std::chrono::milliseconds(PERIODO_MS));
+		#endif
 		// Estados do botao:
 		// DESAPERTADO -> APERTADO -> SOLTO -> ATIVAR -> DESAPERTADO
 		// Funcao do botao ativada em ATIVAR
@@ -94,13 +117,18 @@ int main(){
 			//sr_ovo1();
 			botoes[0].estado = DESAPERTADO;
 			botoes[1].estado = DESAPERTADO;
-			//std::this_thread::sleep_for(std::chrono::milliseconds(ATRASO_IMPR_MS));
+
+			#ifdef __arm__
+			std::this_thread::sleep_for(std::chrono::milliseconds(ATRASO_IMPR_MS));
+			#endif
 		}
 		else if (botoes[0].estado == ATIVAR) {
 			cout << "poema" << endl;
 			if (numInformacoes) numInformacoes = 0;
 			geraPoema();
-			//std::this_thread::sleep_for(std::chrono::milliseconds(ATRASO_IMPR_MS));
+			#ifdef __arm__
+std::this_thread::sleep_for(std::chrono::milliseconds(ATRASO_IMPR_MS));
+#endif
 			botoes[1].estado = DESAPERTADO;
 		}
 		else if (botoes[1].estado == ATIVAR) {
@@ -109,7 +137,9 @@ int main(){
 			if (numInformacoes == 6) sr_ovo2();
 			else if (numInformacoes == 13) sr_ovo3();
 			else informacoes();
-			// std::this_thread::sleep_for(std::chrono::milliseconds(ATRASO_IMPR_MS));
+			#ifdef __arm__
+std::this_thread::sleep_for(std::chrono::milliseconds(ATRASO_IMPR_MS));
+#endif
 			botoes[0].estado = DESAPERTADO;
 		}
 	}
@@ -126,10 +156,10 @@ void setup(string nomeDoArquivo) {
 		Silabas.clear();
 		Ultimas.clear();
 	}
-
 	ifstream Arquivo;
 	string ler;
 	Arquivo.open(nomeDoArquivo);
+    if(Arquivo.fail()) cout << "Falhamos" << endl;
 	while (Arquivo) {
 		Arquivo >> ler;
 		string silaba;
@@ -145,7 +175,7 @@ void setup(string nomeDoArquivo) {
 				silaba += ler[i];
 			}
 			//Silaba Formada
-			else {
+			else if (silaba.length() < 5) {
 				jaExiste = false;
 				//Verificando se a silaba ja existe
 				unsigned int j;
@@ -189,10 +219,11 @@ void setup(string nomeDoArquivo) {
 #endif
 }
 
-list<Silaba*> geraPalavra(Silaba* terminacao, int maxTamanho) {
-	//A opcao por uma list em vez de um vector se deve ao metodo "push_front" que o vector nao tem.
-	list<Silaba*> palavra;
-
+//list<Silaba*> geraPalavra(Silaba* terminacao, int maxTamanho) {
+Palavra geraPalavra (Silaba* terminacao, int maxTamanho){
+//A opcao por uma list em vez de um vector se deve ao metodo "push_front" que o vector nao tem.
+	//list<Silaba*> palavra;
+    Palavra palavra;
 	//Geramos as palavras da ultima silaba para a primeira
 	Silaba* adicionada = terminacao;
 	for (int numSilabas = 0; numSilabas < maxTamanho; numSilabas++) {
@@ -202,7 +233,8 @@ list<Silaba*> geraPalavra(Silaba* terminacao, int maxTamanho) {
 		//A quantidade de silabas deve ser mantida, mesmo se a silaba encontrada nao tem predecessoras.
 		if (adicionada == NULL) {
 			adicionada = Silabas.at(rand() % Silabas.size());
-		}
+		    //break;
+        }
 	}
 	return palavra;
 }
@@ -224,22 +256,30 @@ void geraPoema()
 
 
 	//Geracao dos Versos
-	list<list<list<Silaba*>>> poema;
-	for (int numVerso = 1; numVerso <= 14; numVerso++) {
+	//list<list<list<Silaba*>>> poema;
+	Poema poema;
+    for (int numVerso = 1; numVerso <= 14; numVerso++) {
 		int numSilabas = 0;
 		int qtdSilabas = 0;
-		list<list<Silaba*>> verso;
-		list<Silaba*> palavra;
+        int qtdSilabasR = 0;
+		Verso verso;
+        Palavra palavra;
+        //list<list<Silaba*>> verso;
+		//list<Silaba*> palavra;
 		bool temMonossilaba = false;
 		while (numSilabas < maximoSilabas) {
 			//Geracao da quantidade de silabas. Evita palavras muito grandes.
-			do { qtdSilabas = rand() % (maximoSilabas - numSilabas); 
-			} while (qtdSilabas > 5);
+			do { qtdSilabasR = rand() % (maximoSilabas - numSilabas); 
+			} while (qtdSilabasR > 13);
 
-			qtdSilabas %= maximoSilabas - numSilabas;
-
+			qtdSilabasR %= maximoSilabas - numSilabas;
+            if (qtdSilabasR == 1) qtdSilabas = 1;
+            else if (qtdSilabasR > 1 && qtdSilabasR < 5) qtdSilabas = 2;
+            else if (qtdSilabasR > 4 && qtdSilabasR < 10) qtdSilabas = 3;
+            else if (qtdSilabasR > 9 && qtdSilabasR < 13) qtdSilabas = 4;
+            else if (qtdSilabasR == 13) qtdSilabas = 5;
 			//Evita muitas monossilabas, reduzindo repeticao de palavras finais.
-			if (((temMonossilaba)) && ((qtdSilabas == 0))) { 
+			if (((temMonossilaba)) && ((qtdSilabas == 1))) { 
 				qtdSilabas++; 
 			}
 
@@ -281,30 +321,37 @@ void geraPoema()
 	}
 
 	ofstream saida;
-	saida.open("Poema.txt");
+	saida.open("poema.txt");
 
-	list<list<list<Silaba*>>>::iterator iteradorExterno = poema.begin();
-	int numVerso = 1;
+	//list<list<list<Silaba*>>>::iterator iteradorExterno = poema.begin();
+	Poema::iterator iteradorExterno = poema.begin();
+    int numVerso = 1;
 	//Iterando pelos versos do poema
 	while (iteradorExterno != poema.end()) {
-		list<list<Silaba*>> versoAtual = (*iteradorExterno);
-		list<list<Silaba*>>::iterator iteradorInterno = versoAtual.begin();
+		Verso versoAtual = (*iteradorExterno);
+        Verso::iterator iteradorInterno = versoAtual.begin();
+        //list<list<Silaba*>> versoAtual = (*iteradorExterno);
+		//list<list<Silaba*>>::iterator iteradorInterno = versoAtual.begin();
 		//Iterando pelas palavras de cada verso
 		while (iteradorInterno != versoAtual.end()) {
-			list<Silaba*> palavraAtual = (*iteradorInterno);
-			list<Silaba*>::iterator iteradorPalavra = palavraAtual.begin();
+			Palavra palavraAtual = (*iteradorInterno);
+            Palavra::iterator iteradorPalavra = palavraAtual.begin();
+            //list<Silaba*> palavraAtual = (*iteradorInterno);
+			//list<Silaba*>::iterator iteradorPalavra = palavraAtual.begin();
 			//Iterando pelas silabas de cada palavra
 			while (iteradorPalavra != palavraAtual.end()) {
 				string aux = (*iteradorPalavra)->getEscrita();
 				//Iterando por cada letra de cada silaba, substituindo caracteres especiais para escrever corretamente.
 				for (int i = 0; i < aux.length(); i++) {
+					#ifdef _WIN32
 					for (int w = 0; w < 12; w++) {
 						if ((int)(unsigned char)aux[i] == string_especial[w]) {
-							aux[i] = tolower((unsigned char)ascii_especial[w]);
+							aux[i] =(unsigned char)ascii_especial[w];
 						}
 					}
+					#endif
 					//Inicio do verso com letra maiuscula.
-					if (iteradorPalavra == palavraAtual.begin() && i == 0 && iteradorInterno == versoAtual.begin()) saida << (unsigned char)toupper(aux[i]);
+					if (iteradorPalavra == palavraAtual.begin() && i == 0 && iteradorInterno == versoAtual.begin()) saida << (unsigned char)toupper((aux[i]);
 					else saida << aux[i];
 				}
 
@@ -320,31 +367,36 @@ void geraPoema()
 		numVerso++;
 	}
 	saida.close();
-	system("imprime-poema.sh");
+	#ifdef __arm__
+	system("./script-impressao-poema.sh &");
+	#else
+	system("poema.txt");
+	#endif
+
 }
 
 void sr_ovo1()
 {
 	// Imprime segredo 1
-	system("imprime-segredo1.sh");
+	system("./script-impressao.sh sr-ovo1 &");
 }
 
 void sr_ovo2()
 {
-	// Imprime segredo 2
-	system("imprime-segredo2.sh");
+	// Imprime segredo 2'
+	system("./script-impressao.sh sr-ovo2 &");
 }
 
 void sr_ovo3()
 {
 	// Imprime segredo 3
-	system("imprime-segredo3.sh");
+	system("./script-impressao.sh sr-ovo3 &");
 }
 
 void informacoes()
 {
-	//Cabe espaço pra rodar o programa de latexificação das informações ou a gente faz direto em latex
-	system("imprime-informacoes.sh");
+	//Cabe espaï¿½o pra rodar o programa de latexificaï¿½ï¿½o das informaï¿½ï¿½es ou a gente faz direto em latex
+	system("./script-impressao.sh informacoes &");
 }
 
 void atualiza_botao(botao* b)
@@ -423,7 +475,8 @@ bool dois_botoes(botao b1, botao b2)
 void debug_print(string s)
 {
 #ifdef DEBUG
-	cout << s << endl;
+    auto time = std::time(nullptr);	
+    cout << std::put_time( std::localtime(&time), "%F %Tz" ) << " " << s << endl;
 #endif // DEBUG
 	return;
 }
