@@ -10,8 +10,6 @@
 #elif _WIN32 // Windows
 	#include <Windows.h>
 #else // Outras plataformas
-
-
 #endif
 
 
@@ -68,7 +66,11 @@ void informacoes();
 void atualiza_botao(botao* b);
 int leitura_botao(int n_botao);
 bool dois_botoes(botao b1, botao b2);
+
 void debug_print(string s);
+
+//Converte caracteres especiais (que seriam impressos corrompidos) para sua forma real de caractere
+unsigned char converteChar(char caractere);
 
 bool temDicionario = false;
 
@@ -83,7 +85,6 @@ int main(){
 	#else
 	setup("banco.txt");
 	#endif
-	
 	srand(time(NULL));
 	debug_print("Pronto");
 	
@@ -147,7 +148,9 @@ std::this_thread::sleep_for(std::chrono::milliseconds(ATRASO_IMPR_MS));
 }
 
 
-void setup(string nomeDoArquivo) {
+void setup(string nomeDoArquivo) 
+{
+
 #ifdef DEBUG
 	auto begin = chrono::high_resolution_clock::now();
 #endif
@@ -159,7 +162,7 @@ void setup(string nomeDoArquivo) {
 	ifstream Arquivo;
 	string ler;
 	Arquivo.open(nomeDoArquivo);
-    if(Arquivo.fail()) cout << "Falhamos" << endl;
+    if(Arquivo.fail()) debug_print("Falha na abertura do arquivo.");
 	while (Arquivo) {
 		Arquivo >> ler;
 		string silaba;
@@ -167,9 +170,15 @@ void setup(string nomeDoArquivo) {
 		Silaba* anteriorO;
 		bool comecoDePalavra = true;
 		bool jaExiste = false;
+		bool ignoraBit = false;
 		for (int i = 0; i < (int)ler.size(); i++) {
+			ignoraBit = false;
 			ler[i] = tolower(ler[i]); //Trabalhamos apenas com letras minusculas
-
+			int bitsIgnorados[] = {-17, -69, -65};
+			for (int j = 0;!ignoraBit && j < 3; j++){
+				if ((int)ler[i] == bitsIgnorados[j]) ignoraBit = true;
+			}
+			if (ignoraBit) continue;
 			//Formando a silaba
 			if (ler[i] != '-' && ler[i] != '.') {
 				silaba += ler[i];
@@ -192,7 +201,7 @@ void setup(string nomeDoArquivo) {
 				else {
 					silabaO = new Silaba(silaba);
 					Silabas.push_back(silabaO);
-
+					debug_print(silabaO->getEscrita());
 				}
 				silaba.clear();
 				if (!comecoDePalavra) {
@@ -344,14 +353,15 @@ void geraPoema()
 				//Iterando por cada letra de cada silaba, substituindo caracteres especiais para escrever corretamente.
 				for (int i = 0; i < aux.length(); i++) {
 					#ifdef _WIN32
-					for (int w = 0; w < 12; w++) {
+					/*for (int w = 0; w < 12; w++) {
 						if ((int)(unsigned char)aux[i] == string_especial[w]) {
 							aux[i] =(unsigned char)ascii_especial[w];
 						}
-					}
+					}*/
 					#endif
+					aux[i] = converteChar(aux[i]);
 					//Inicio do verso com letra maiuscula.
-					if (iteradorPalavra == palavraAtual.begin() && i == 0 && iteradorInterno == versoAtual.begin()) saida << (unsigned char)toupper((aux[i]);
+					if (iteradorPalavra == palavraAtual.begin() && i == 0 && iteradorInterno == versoAtual.begin()) saida << (aux[i]);
 					else saida << aux[i];
 				}
 
@@ -476,7 +486,16 @@ void debug_print(string s)
 {
 #ifdef DEBUG
     auto time = std::time(nullptr);	
-    cout << std::put_time( std::localtime(&time), "%F %Tz" ) << " " << s << endl;
+    cout << std::put_time( std::localtime(&time), "%F %T" ) << " " << s << endl;
 #endif // DEBUG
 	return;
+}
+
+unsigned char converteChar(char caractere){
+	for (int w = 0; w < 12; w++) {
+		if ((int)(unsigned char) caractere == string_especial[w]) {
+			caractere =(unsigned char)ascii_especial[w];
+		}
+	}
+	return (unsigned char)caractere;
 }

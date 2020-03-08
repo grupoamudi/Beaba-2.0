@@ -11,12 +11,15 @@ vector<Silaba*> Silabas;
 vector<Silaba*> Ultimas;
 Silaba* espaco = new Silaba(" ");
 
+typedef std::list<Silaba*> Palavra;
+typedef std::list<std::list<Silaba*>> NomeCompleto;
+
 bool temDicionario = false;
 
 int maximoSilabas = 10;
 
 //Gera uma palavra a partir de uma silaba final e com seu maximo tamanho
-list<Silaba*> geraPalavra(Silaba* terminacao, int maxTamanho);
+Palavra geraPalavra(Silaba* terminacao, int maxTamanho);
 //Carrega o banco de palavras, gerando o grafo.
 void setup(string nomeDoArquivo);
 
@@ -40,11 +43,11 @@ int main(){
 	//Runtime dos setups com os dicionarios providos deve ser por volta de 1 segundo.
 	setup(dicionario);
 
-	list<list<Silaba*>> nomeCompleto;
+	NomeCompleto nomeCompleto;
 	
 	//Poucas pessoas tem nome de 1 silaba ou mais de 8, pelo menos em paises lusofonos.
 	int qtdSilabas = 0;
-	do { qtdSilabas = rand() ; } while (qtdSilabas >= RAND_MAX - RAND_MAX % 6);
+	do { qtdSilabas = rand() ; } while (qtdSilabas >= RAND_MAX - RAND_MAX % 5);
 	qtdSilabas %= 6;
 	qtdSilabas += 2;
 
@@ -72,11 +75,11 @@ int main(){
 	nome.open("nomeGerado.txt");
 
 
-	list<list<Silaba*>>::iterator iteradorExterno = nomeCompleto.begin();
+	NomeCompleto::iterator iteradorExterno = nomeCompleto.begin();
 	//Iterando por cada nome do nome completo
 	while (iteradorExterno != nomeCompleto.end()) {
-		list<Silaba*> fracaoAtual = (*iteradorExterno);
-		list<Silaba*>::iterator iteradorInterno = fracaoAtual.begin();
+		Palavra fracaoAtual = (*iteradorExterno);
+		Palavra::iterator iteradorInterno = fracaoAtual.begin();
 
 		//Iterando por cada silaba de cada nome
 		while (iteradorInterno != fracaoAtual.end()) {
@@ -106,20 +109,21 @@ int main(){
     return 0;
 }
 
-list<Silaba*> geraPalavra(Silaba* terminacao, int maxTamanho){
+Palavra geraPalavra(Silaba* terminacao, int maxTamanho){
 	//A opcao por uma list em vez de um vector se deve ao metodo "push_front" que o vector nao tem.
-	list<Silaba*> palavra;
+	Palavra palavra;
 	
 	//Geramos as palavras da ultima silaba para a primeira
 	Silaba* adicionada = terminacao;
-	for (int numSilabas = 0; numSilabas < maxTamanho; numSilabas++;) {
+	for (int numSilabas = 0; numSilabas < maxTamanho; numSilabas++) {
 		palavra.pf(adicionada);
 		
 		adicionada = palavra.front()->sorteiaPredecessora();
 		//A quantidade de silabas deve ser mantida, mesmo se a silaba encontrada nao tem predecessoras.
 		if (adicionada == NULL) {
-			adicionada = Silabas.at(rand() % Silabas.size());
-		}
+//adicionada = Silabas.at(rand() % Silabas.size());
+            break;
+        }
 	}
 	return palavra;
 }
@@ -142,9 +146,13 @@ void setup(string nomeDoArquivo) {
 		bool comecoDePalavra = true;
 
 		for (int i = 0; i < (int)ler.size(); i++) {
+			ignoraBit = false;
 			ler[i] = tolower(ler[i]); //Trabalhamos apenas com letras minusculas
-
-			
+			int bitsIgnorados[] = {-17, -69, -65}; //BOM de um arquivo UTF-8
+			for (int j = 0;!ignoraBit && j < 3; j++){
+				if ((int)ler[i] == bitsIgnorados[j]) ignoraBit = true;
+			}
+			if (ignoraBit) continue;
 			if (ler[i] != '-' && ler[i] != '.') {//Formando a silaba
 				silaba += ler[i];
 			}
