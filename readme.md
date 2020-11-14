@@ -1,9 +1,11 @@
-Esse programa requer instalação de algum Visual Studio pois a header "io.h" de c++ é exclusiva da Microsoft, ao que parece. 
-O resto o g++ deve tomar conta. Ainda NÃO adaptado à RaspberryPi, que vai utilizar a header "WiringPi.h"
+"Beabá 2.0" é uma releitura da obra "Beaba" dos artistas Waldemar Cordeiro e Giorgio Moscati.
 
-Python precisa de nltk e pyphen. No ambiente do python, rode o seguinte código:
-#
-import nltk
-nltk.download()
-#
-E baixe o arquivo "floresta" de lá.
+Ela cria sonetos decassilabos com palavras inventadas com o uso de Cadeias de Markov, baseando-se em um corpus de palavras e em suas sílabas. Os sonetos então são impressos por uma impressora.
+
+Compatível com Raspberry Pi, utilizando botões físicos e uma impressora a tinta ou térmica.
+
+
+
+Os scripts de Python precisam de nltk e pyphen, assim como uma instalação prévia dos corpus do nltk (caso o objetivo seja refazer um banco de silabas)
+
+Os scripts .sh ainda estão faltando, assim como os Srs. Ovo.
